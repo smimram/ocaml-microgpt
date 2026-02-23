@@ -147,6 +147,7 @@ let () =
   (* Repeat in sequence *)
   let num_steps = 1000 in (* number of training steps *)
   for step = 0 to num_steps - 1 do
+
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
       docs.(step mod Array.length docs)
@@ -169,7 +170,8 @@ let () =
       let loss_t = neg (log probs.(target_id)) in
       losses := Array.append !losses [|loss_t|]
     done;
-    let loss = mul (const (1. /. float n)) (Vector.sum !losses) in (* final average loss over the document sequence. May yours be low. *)
+    (* final average loss over the document sequence. May yours be low. *)
+    let loss = mul (const (1. /. float n)) (Vector.sum !losses) in
 
     (* Backward the loss, calculating the gradients with respect to all model parameters *)
     backward loss;

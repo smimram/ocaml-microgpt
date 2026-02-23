@@ -54,11 +54,11 @@ let backward a =
       else explore @@ Queue.pop queue
     and explore a =
       (* TODO: could be faster, e.g. by having a visited field in nodes. *)
-      if not (List.mem a !ans) then (
+      if List.memq a !ans then loop () else (
         ans := a :: !ans;
         List.iter (fun a -> Queue.push a queue) a.children;
         loop ()
-      ) else loop ()
+      )
     in
     loop()
   in
