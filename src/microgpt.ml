@@ -21,4 +21,6 @@ let () =
     |> String.split_on_char '\n'
     |> List.shuffle
   in
-  List.iter print_endline docs
+  (* List.iter print_endline docs; *)
+  Printf.printf "num docs: %d\n%!" (List.length docs);
+  ignore (Autograd.grad)
