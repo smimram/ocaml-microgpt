@@ -4,7 +4,7 @@ type t =
     mutable grad : float; (* derivative of the loss w.r.t. this node, calculated in backward pass *)
     children : t list; (* children of this node in the computation graph *)
     local_grads : float list; (* local derivative of this node w.r.t. its children *)
-    id : int; (* unique identifier *)
+    mutable visited : bool; (* whether the value was already visited during backprop *)
   }
 
 let value a = a.value
@@ -15,7 +15,7 @@ let next_id = ref (-1)
 
 let make value children local_grads =
   incr next_id;
-  { value; grad = 0.; children; local_grads; id = !next_id}
+  { value; grad = 0.; children; local_grads; visited = false}
 
 let const value =
   make value [] []
@@ -48,20 +48,17 @@ let relu a =
   make (max 0. (value a)) [a] [if value a > 0. then 1. else 0.]
 
 let backward a =
-  let module S = Set.Make (struct type nonrec t = t let compare a b = compare a.id b.id end) in
   (* Breadth-first search (see the example from the Queue module). *)
   let topo a =
     let queue = Queue.create() in
-    (* TODO: we could even have a "visited" field in values instead of id *)
-    let visited = ref S.empty in
     let ans = ref [] in
     Queue.push a queue;
     let rec loop () =
       if Queue.is_empty queue then !ans
       else explore @@ Queue.pop queue
     and explore a =
-      if S.mem a !visited then loop () else (
-        visited := S.add a !visited;
+      if a.visited then loop () else (
+        a.visited <- true;
         ans := a :: !ans;
         List.iter (fun a -> Queue.push a queue) a.children;
         loop ()
