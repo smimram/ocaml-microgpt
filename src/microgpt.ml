@@ -28,22 +28,23 @@ let () =
     |> String.split_on_char '\n'
     |> List.map String.trim
     |> List.filter (fun s -> s <> "")
-    |> List.shuffle
+    |> Array.of_list
   in
+  Array.shuffle docs;
   (* List.iter print_endline docs; *)
-  Printf.printf "num docs: %d\n%!" (List.length docs);
+  Printf.printf "num docs: %d\n%!" (Array.length docs);
 
   (* Let there be a Tokenizer to translate strings to sequences of integers ("tokens") and back. *)
   let uchars =
     (* unique characters in the dataset become token ids *)
-    List.to_seq docs
+    Array.to_seq docs
     |> Seq.concat_map String.to_seq
     |> List.of_seq
     |> List.sort_uniq compare
     |> Array.of_list
   in
   (* token id for a special Beginning of Sequence (BOS) token *)
-  let _bos = Array.length uchars in
+  let bos = Array.length uchars in
   (* total number of unique tokens, +1 is for BOS *)
   let vocab_size = Array.length uchars + 1 in
   Printf.printf "vocab size: %d\n%!" vocab_size;
@@ -137,5 +138,25 @@ let () =
     done;
     linear !x state.lm_head
   in
-  ();
-  ignore (Autograd.grad)
+
+  (* Let there be Adam, the blessed optimizer and its buffers *)
+  let learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8 in
+  (* let m = [0.0] * len(params) # first moment buffer *)
+  (* v = [0.0] * len(params) # second moment buffer *)
+
+  (* Repeat in sequence *)
+  let num_steps = 1000 in (* number of training steps *)
+  for step = 0 to num_steps - 1 do
+    (* Take single document, tokenize it, surround it with BOS special token on both sides *)
+    let tokens =
+      docs.(step mod Array.length docs)
+      |> String.to_seq
+      |> Seq.map (Array.index uchars)
+      |> (fun doc -> Seq.concat (List.to_seq [Seq.return bos; doc; Seq.return bos]))
+      |> Array.of_seq
+    in
+    let n = min block_size (Array.length tokens - 1) in
+    ()
+  done
+
+

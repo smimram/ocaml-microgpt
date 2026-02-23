@@ -4,14 +4,22 @@ module File = struct
       (fun ic -> really_input_string ic (in_channel_length ic))
 end
 
-module List = struct
-  include List
+module Array = struct
+  include Array
 
-  let shuffle l =
-    l
-    |> List.map (fun x -> (Random.bits (), x))
-    |> List.sort (fun (a, _) (b, _) -> Stdlib.compare a b)
-    |> List.map snd
+  (** Index of an element. *)
+  let index a x =
+    Option.get @@ Array.find_index (fun y -> x = y) a
+
+  (** Fisher-Yates shuffle of an array. *)
+  let shuffle a =
+    let n = Array.length a in
+    for i = n - 1 downto 1 do
+      let j = Random.int (i + 1) in
+      let x = a.(i) in
+      a.(i) <- a.(j);
+      a.(j) <- x
+    done
 end
 
 module Random = struct
