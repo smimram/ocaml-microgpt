@@ -30,4 +30,15 @@ module Random = struct
     let u1 = Random.float 1.0 in
     let u2 = Random.float 1.0 in
     sqrt (-2. *. log u1) *. cos (2. *. Float.pi *. u2)
+
+  (** Pick an element in a weighted list. *)
+  let element l =
+    let total = List.fold_left ( +. ) 0. @@ List.map fst l in
+    let r = Random.float total in
+    let rec aux r = function
+      | [_,x] -> x
+      | (a,x)::l -> if r < a then x else aux (r -. a) l
+      | [] -> assert false
+    in
+    aux r l
 end

@@ -187,6 +187,30 @@ let () =
       ) params;
 
     Printf.printf "step %04d / %04d | loss %0.4f\r" (step+1) num_steps (value loss)
+  done;
+
+  (* Inference: may the model babble back to us *)
+  let temperature = 0.5 in (* in (0, 1], control the "creativity" of generated text, low to high *)
+  print_string "\n--- inference (new, hallucinated names) ---";
+  for sample_idx = 0 to 19 do
+    let keys = Array.make n_layer [||] in
+    let values = Array.make n_layer [||] in
+    let token_id = bos in
+    let sample = ref [] in
+    let pos_id = ref 0 in
+    while !pos_id < block_size do
+      incr pos_id;
+      let logits = gpt token_id !pos_id keys values in
+      let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
+      let token_id =
+        let probs = List.mapi (fun i x -> value x, i) (Array.to_list probs) in
+        Random.element probs
+      in
+      if token_id = bos then pos_id := block_size
+      else sample := uchars.(token_id) :: !sample
+    done;
+    let sample = String.of_seq @@ List.to_seq @@ List.rev !sample in
+    Printf.printf "sample %02d: %s\n%!" (sample_idx+1) sample
   done
 
 
