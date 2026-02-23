@@ -11,10 +11,7 @@ let value a = a.value
 
 let grad a = a.grad
 
-let next_id = ref (-1)
-
 let make value children local_grads =
-  incr next_id;
   { value; grad = 0.; children; local_grads; visited = false}
 
 let const value =
