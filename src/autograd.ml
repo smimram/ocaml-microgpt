@@ -60,3 +60,10 @@ let () =
   backward l;
   assert (grad a = 4.);
   assert (grad b = 2.)
+
+module Matrix = struct
+  type nonrec t = t array array
+
+  let init tgt src f : t =
+    Array.init_matrix tgt src f
+end
