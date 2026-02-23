@@ -1,3 +1,10 @@
+(library
+ (name autograd)
+ (modules autograd)
+)
+
 (executable
  (name microgpt)
+ (libraries autograd)
+ (modules extlib microgpt)
 )

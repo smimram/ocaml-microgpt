@@ -1,0 +1,11 @@
+(executable
+ (name basic)
+ (libraries autograd)
+ (modules basic)
+)
+
+(rule
+ (alias runtest)
+ (action (run ./basic.exe))
+)
+          
