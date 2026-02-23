@@ -141,8 +141,8 @@ let () =
 
   (* Let there be Adam, the blessed optimizer and its buffers *)
   let learning_rate, beta1, beta2, eps_adam = 0.01, 0.85, 0.99, 1e-8 in
-  (* let m = [0.0] * len(params) # first moment buffer *)
-  (* v = [0.0] * len(params) # second moment buffer *)
+  let m = Array.make (List.length params) 0. in (* first moment buffer *)
+  let v = Array.make (List.length params) 0. in (* second moment buffer *)
 
   (* Repeat in sequence *)
   let num_steps = 1000 in (* number of training steps *)
@@ -170,7 +170,23 @@ let () =
       losses := Array.append !losses [|loss_t|]
     done;
     let loss = mul (const (1. /. float n)) (Vector.sum !losses) in (* final average loss over the document sequence. May yours be low. *)
-    ()
+
+    (* Backward the loss, calculating the gradients with respect to all model parameters *)
+    backward loss;
+
+    (* Adam optimizer update: update the model parameters based on the corresponding gradients *)
+    let lr_t = learning_rate *. (1. -. float step /. float num_steps) in (* linear learning rate decay *)
+    List.iteri
+      (fun i p ->
+        m.(i) <- beta1 *. m.(i) +. (1. -. beta1) *. p.grad;
+        v.(i) <- beta2 *. v.(i) +. (1. -. beta2) *. p.grad ** 2.;
+        let m_hat = m.(i) /. (1. -. beta1 ** (float (step + 1))) in
+        let v_hat = v.(i) /. (1. -. beta2 ** (float (step + 1))) in
+        p.value <- p.value -. lr_t *. m_hat /. (v_hat ** 0.5 +. eps_adam);
+        p.grad <- 0.
+      ) params;
+
+    Printf.printf "step %04d / %04d | loss %0.4f\r" (step+1) num_steps (value loss)
   done
 
 
