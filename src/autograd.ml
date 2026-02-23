@@ -45,14 +45,14 @@ let backward a =
   a.grad <- 1.;
   List.iter (fun a -> List.iter2 (fun child grad -> child.grad <- child.grad +. grad) a.children a.local_grads) topo
 
-module Inline = struct
+module Infix = struct
   let ( + ) = add
   let ( * ) = mul
 end
 
 (* Basic test. *)
 let () =
-  let open Inline in
+  let open Infix in
   let a = const 2. in
   let b = const 3. in
   let c = a * b in
