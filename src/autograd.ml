@@ -19,8 +19,23 @@ let const value =
 let add a b =
   make (value a +. value b) [a; b] [1.; 1.]
 
+let sub a b =
+  make (value a -. value b) [a; b] [1.; -1.]
+
 let mul a b =
   make (value a *. value b) [a; b] [value b; value a]
+
+let div a b =
+  make (value a /. value b) [a; b] [1. /. value b; -. value a /. (value b *. value b)]
+
+let exp a =
+  make (exp @@ value a) [a] [exp @@ value a]
+
+let pow a b =
+  make (value a ** value b) [a; b] [value b *. (value a ** (value b -. 1.)); (value a ** value b) *. log (value a)]
+
+let relu a =
+  make (max 0. (value a)) [a] [if value a > 0. then 1. else 0.]
 
 let backward a =
   (* Breadth-first search (see the example from the Queue module). *)
@@ -48,6 +63,9 @@ let backward a =
 module Infix = struct
   let ( + ) = add
   let ( * ) = mul
+  let ( - ) = sub
+  let ( / ) = div
+  let ( ** ) = pow
 end
 
 (* Basic test. *)
@@ -61,9 +79,90 @@ let () =
   assert (grad a = 4.);
   assert (grad b = 2.)
 
+(** Vectors. *)
+module Vector = struct
+  (** A vector. *)
+  type nonrec t = t array
+
+  let init n f : t = Array.init n f
+
+  (** Dimension of a vector. *)
+  let dim (v:t) = Array.length v
+
+  (** Apply a function on every coefficient. *)
+  let map f (v:t) : t = Array.map f v
+
+  (** Subvector. *)
+  let sub (v:t) off len : t = Array.sub v off len
+
+  (** Hadamard product. *)
+  let hadamard (v:t) (w:t) : t =
+    assert (dim v = dim w);
+    Array.init (dim v) (fun i -> mul v.(i) w.(i))
+
+  (** Sum of the components of a vector. *)
+  let sum (v:t) =
+    let ans = ref @@ const 0. in
+    for i = 0 to dim v - 1 do
+      ans := add !ans v.(i)
+    done;
+    !ans
+
+  (** Dot product of vectors. *)
+  let dot v w = sum @@ hadamard v w
+
+  (** Mutiplication by a constant. *)
+  let cmul a v = map (fun x -> mul a x) v
+
+  (** Soft max function. *)
+  let soft_max (logits:t) =
+    let max_val = const @@ Array.fold_left max min_float @@ Array.map value logits in
+    let open Infix in
+    let exps = map (fun x -> exp (x - max_val)) logits in
+    let total = sum exps in
+    map (fun e -> div e total) exps
+
+  (** RMS norm. *)
+  let rms_norm (x:t) =
+    let ms = sum @@ hadamard x x in
+    let scale = pow (add ms (const 1e-5)) (const (-0.5)) in
+    cmul scale x
+
+  (** Vector addition. *)
+  let add (v:t) (w:t) : t =
+    assert (dim v = dim w);
+    Array.init (dim v) (fun i -> add v.(i) w.(i))
+end
+
+(** Matrices. *)
 module Matrix = struct
+  (** A matrix. *)
   type nonrec t = t array array
 
-  let init tgt src f : t =
-    Array.init_matrix tgt src f
+  (** Create a matrix with given coefficients. *)
+  let init rows cols f : t =
+    Array.init_matrix rows cols f
+
+  (** Number of rows. *)
+  let rows a = Array.length a
+
+  (** Number of columns. *)
+  let cols a = Array.length a.(0)
+
+  (** Get a row. *)
+  let row (a:t) i : Vector.t = a.(i)
+
+  (** List of all coefficients. *)
+  let coefficients (a:t) =
+    a
+    |> Array.to_list
+    |> List.map Array.to_list
+    |> List.flatten
+
+  (** Apply a matrix to a vector. *)
+  let ap (a : t) (x : Vector.t) : Vector.t =
+    Array.init (rows a) (fun i -> Vector.dot a.(i) x)
+
+  let transpose a =
+    init (cols a) (rows a) (fun i j -> a.(j).(i))
 end
