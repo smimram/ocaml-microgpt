@@ -156,6 +156,20 @@ let () =
       |> Array.of_seq
     in
     let n = min block_size (Array.length tokens - 1) in
+
+    (* Forward the token sequence through the model, building up the computation graph all the way to the loss *)
+    let keys = Array.init n_layer (fun _ -> [||]) in
+    let values = Array.init n_layer (fun _ -> [||]) in
+    let losses = ref [||] in
+    for pos_id = 0 to n - 1 do
+      let token_id = tokens.(pos_id) in
+      let target_id = tokens.(pos_id + 1) in
+      let logits = gpt token_id pos_id keys values in
+      let probs = Vector.soft_max logits in
+      let loss_t = neg (log probs.(target_id)) in
+      losses := Array.append !losses [|loss_t|]
+    done;
+    let loss = mul (const (1. /. float n)) (Vector.sum !losses) in (* final average loss over the document sequence. May yours be low. *)
     ()
   done
 

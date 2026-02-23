@@ -22,6 +22,9 @@ let add a b =
 let sub a b =
   make (value a -. value b) [a; b] [1.; -1.]
 
+let neg a =
+  make (-. (value a)) [a] [-1.]
+
 let mul a b =
   make (value a *. value b) [a; b] [value b; value a]
 
@@ -33,6 +36,9 @@ let exp a =
 
 let pow a b =
   make (value a ** value b) [a; b] [value b *. (value a ** (value b -. 1.)); (value a ** value b) *. log (value a)]
+
+let log a =
+  make (log @@ value a) [a] [1. /. value a]
 
 let relu a =
   make (max 0. (value a)) [a] [if value a > 0. then 1. else 0.]
