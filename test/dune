@@ -21,6 +21,17 @@
 )
 
 (executable
+ (name affine)
+ (libraries autograd)
+ (modules affine)
+)
+
+(rule
+ (alias runtest)
+ (action (run ./affine.exe))
+)
+
+(executable
  (name square)
  (libraries autograd)
  (modules square)
