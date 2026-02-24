@@ -205,10 +205,7 @@ let () =
       incr pos_id;
       let logits = gpt token_id !pos_id keys values in
       let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
-      let token_id =
-        let probs = List.mapi (fun i x -> value x, i) (Array.to_list probs) in
-        Random.element probs
-      in
+      let token_id = Random.index @@ Array.map value probs in
       if token_id = bos then pos_id := block_size
       else sample := uchars.(token_id) :: !sample
     done;
