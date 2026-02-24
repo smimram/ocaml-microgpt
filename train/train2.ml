@@ -112,7 +112,7 @@ let () =
         p.grad <- 0.
       ) params;
 
-    Printf.printf "step %4d / %4d | loss %.4f\r" (step+1) num_steps (value loss)
+    Printf.printf "step %4d / %4d | loss %.4f\r%!" (step+1) num_steps (value loss)
   done;
   print_newline ();
 
