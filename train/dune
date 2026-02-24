@@ -3,3 +3,9 @@
  (modules train0)
  (libraries extlib)
 )
+
+(executable
+ (name train2)
+ (modules train2)
+ (libraries extlib autograd)
+)
