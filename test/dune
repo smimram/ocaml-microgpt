@@ -20,3 +20,14 @@
  (action (run ./extlib_test.exe))
 )
 
+(executable
+ (name square)
+ (libraries autograd)
+ (modules square)
+)
+
+(rule
+ (alias runtest)
+ (action (run ./square.exe))
+)
+
