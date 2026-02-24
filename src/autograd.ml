@@ -73,8 +73,9 @@ let backward a =
     loop()
   in
   let topo = List.rev @@ topo a in
+  (* Printf.printf "backward: %d\n%!" (List.length topo); *)
   a.grad <- 1.;
-  List.iter (fun a -> List.iter2 (fun child grad -> child.grad <- child.grad +. grad) a.children a.local_grads) topo
+  List.iter (fun a -> List.iter2 (fun child grad -> child.grad <- child.grad +. grad *. a.grad) a.children a.local_grads) topo
 
 module Infix = struct
   let ( + ) = add
