@@ -6,8 +6,8 @@ let () =
 
   let rand () = Random.float 20. -. 10. in
 
-  let a = 5. in
-  let b = 2. in
+  let a = rand () in
+  let b = rand () in
   let f x = a *. x +. b in
 
   Printf.printf "a: %.4f / b: %.4f\n%!" a b;
@@ -21,13 +21,12 @@ let () =
     pa * x + pb
   in
 
-  let steps = 10 in
-  let learning_rate = 1. in
+  let steps = 1000 in
+  let learning_rate = 0.01 in
   for step = 0 to steps - 1 do
     let x = rand () in
     let y = net (const x) in
-    let d = sub y (const (f x)) in
-    let loss = mul d d in
+    let loss = powc (sub y (const (f x))) 2. in
 
     backward loss;
     Printf.printf "step: %4d | loss: %.2f | a: %.2f (%.2f) | b: %.2f (%.2f)\n%!" step (value loss) (value pa) (grad pa) (value pb) (grad pb);

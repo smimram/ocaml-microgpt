@@ -16,15 +16,13 @@ let () =
 
   let net x = x |> Matrix.ap layer1 |> Matrix.ap layer2 in
 
-  let learning_rate = 1. in
+  let learning_rate = 0.1 in
   let steps = 1_000 in
   for step = 0 to steps - 1 do
     let loss = ref @@ const 0. in
     List.iter (fun (x,y) ->
         let y' = net [|const x|] in
-        let d = sub (const y) y'.(0) in
-        let d = mul d d in
-        loss := add !loss d
+        loss := add !loss (powc (sub y'.(0) (const y)) 2.)
       ) dataset;
     let loss = !loss in
     backward loss;
