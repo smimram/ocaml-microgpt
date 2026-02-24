@@ -26,6 +26,9 @@ let sub a b =
 let neg a =
   make (-. (value a)) [a] [-1.]
 
+let cmul n a =
+  make (n *. value a) [a] [n]
+
 let mul a b =
   make (value a *. value b) [a; b] [value b; value a]
 
@@ -78,7 +81,7 @@ module Infix = struct
   let ( * ) = mul
   let ( - ) = sub
   let ( / ) = div
-  (* let ( ** ) = pow *)
+  let ( ** ) = powc
 end
 
 (** Vectors. *)
@@ -95,7 +98,7 @@ module Vector = struct
   let map f (v:t) : t = Array.map f v
 
   (** Subvector. *)
-  let sub (v:t) off len : t = Array.sub v off len
+  let subvector (v:t) off len : t = Array.sub v off len
 
   (** Hadamard product. *)
   let hadamard (v:t) (w:t) : t =
@@ -119,8 +122,7 @@ module Vector = struct
   (** Soft max function. *)
   let soft_max (logits:t) =
     let max_val = const @@ Array.fold_left max min_float @@ Array.map value logits in
-    let open Infix in
-    let exps = map (fun x -> exp (x - max_val)) logits in
+    let exps = map (fun x -> exp (sub x max_val)) logits in
     let total = sum exps in
     map (fun e -> div e total) exps
 
