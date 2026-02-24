@@ -35,8 +35,14 @@ let div a b =
 let exp a =
   make (exp @@ value a) [a] [exp @@ value a]
 
+(*
 let pow a b =
   make (value a ** value b) [a; b] [value b *. (value a ** (value b -. 1.)); (value a ** value b) *. log (value a)]
+ *)
+
+(** Power by a constant. *)
+let powc a n =
+  make (value a ** n) [a] [n *. (value a ** (n -. 1.))]
 
 let log a =
   make (log @@ value a) [a] [1. /. value a]
@@ -72,7 +78,7 @@ module Infix = struct
   let ( * ) = mul
   let ( - ) = sub
   let ( / ) = div
-  let ( ** ) = pow
+  (* let ( ** ) = pow *)
 end
 
 (** Vectors. *)
@@ -121,7 +127,7 @@ module Vector = struct
   (** RMS norm. *)
   let rms_norm (x:t) =
     let ms = sum @@ hadamard x x in
-    let scale = pow (add ms (const 1e-5)) (const (-0.5)) in
+    let scale = powc (add ms (const 1e-5)) (-0.5) in
     cmul scale x
 
   (** Vector addition. *)
