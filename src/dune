@@ -3,8 +3,13 @@
  (modules autograd)
 )
 
+(library
+ (name extlib)
+ (modules extlib)
+)
+
 (executable
  (name microgpt)
- (libraries autograd)
- (modules extlib microgpt)
+ (libraries autograd extlib)
+ (modules microgpt)
 )

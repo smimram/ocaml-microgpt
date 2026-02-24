@@ -1,7 +1,13 @@
+(** Extended standard library. *)
+
 module File = struct
   let read fname =
     In_channel.with_open_bin fname
       (fun ic -> really_input_string ic (in_channel_length ic))
+
+  let download url fname =
+    let ans = Sys.command @@ Filename.quote_command "wget" [url;"-O";fname] in
+    assert (ans = 0)
 end
 
 module Array = struct

@@ -24,7 +24,7 @@ let () =
 
   (* Let there be a Dataset docs: a list of documents (e.g. a list of names). *)
   if not (Sys.file_exists "input.txt") then
-    ignore @@ Sys.command @@ Filename.quote_command "wget" ["https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt";"-O";"input.txt"];
+    File.download "https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt" "input.txt";
   let docs =
     File.read "input.txt"
     |> String.split_on_char '\n'
