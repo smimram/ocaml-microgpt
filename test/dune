@@ -8,4 +8,15 @@
  (alias runtest)
  (action (run ./basic.exe))
 )
-          
+
+(executable
+ (name extlib_test)
+ (libraries extlib)
+ (modules extlib_test)
+)
+
+(rule
+ (alias runtest)
+ (action (run ./extlib_test.exe))
+)
+
