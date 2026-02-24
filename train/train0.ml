@@ -51,7 +51,7 @@ let () =
     let row = state.(token_id) in
     (* add-one (Laplace) smoothing *)
     let row = Array.map succ row in
-    let total = Array.fold_left (+) 0 row  in
+    let total = Array.fold_left (+) 0 row in
     Array.map (fun c -> float c /. float total) row
   in
 
@@ -88,19 +88,32 @@ let () =
 
     Printf.printf "step %4d / %4d | loss %.4f\r" (step+1) num_steps loss
   done;
+  print_newline ();
+
+  (*
+  let () =
+    print_newline ();
+    for i = 0 to Array.length uchars - 1 do
+      let probs = bigram i in
+      let probs = Array.mapi (fun i w -> Printf.sprintf "%c:%.02f" (if i = bos then '_' else uchars.(i)) w) probs in
+      let probs = String.concat ", " @@ Array.to_list probs in
+      Printf.printf "%c: %s\n" uchars.(i) probs;
+    done
+  in
+  *)  
 
   (* Inference: sample new names from the model *)
   print_endline "\n--- inference (new, hallucinated names) ---";
   let block_size = 16 in (* maximum sequence length *)
   for sample_idx = 0 to 20 - 1 do
-    let token_id = bos in
+    let token_id = ref bos in
     let sample = ref [] in
     let pos_id = ref 0 in
     while !pos_id < block_size do
       incr pos_id;
-      let token_id = Random.index @@ bigram token_id in      
-      if token_id = bos then pos_id := block_size
-      else sample := uchars.(token_id) :: !sample;
+      token_id := Random.index @@ bigram !token_id;
+      if !token_id = bos then pos_id := block_size
+      else sample := uchars.(!token_id) :: !sample;
     done;
     let sample = String.of_seq @@ List.to_seq @@ List.rev !sample in
     Printf.printf "sample %2d: %s\n%!" (sample_idx+1) sample
