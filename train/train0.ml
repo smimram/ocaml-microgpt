@@ -18,8 +18,7 @@ let () =
   Random.self_init ();
 
   (* Let there be a Dataset docs: a list of documents (e.g. a list of names). *)
-  if not (Sys.file_exists "input.txt") then
-    File.download "https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt" "input.txt";
+  if not (Sys.file_exists "input.txt") then File.download "https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt" "input.txt";
   let docs =
     File.read "input.txt"
     |> String.split_on_char '\n'
@@ -50,8 +49,10 @@ let () =
   (* The "model": given a token_id, return the probability distribution over the next token *)
   let bigram token_id =
     let row = state.(token_id) in
-    let total = Array.fold_left (+) 0 row + vocab_size (* add-one (Laplace) smoothing *) in
-    Array.map (fun c -> (float c +. 1.) /. float total) row
+    (* add-one (Laplace) smoothing *)
+    let row = Array.map succ row in
+    let total = Array.fold_left (+) 0 row  in
+    Array.map (fun c -> float c /. float total) row
   in
 
   (* Train the model *)
@@ -90,14 +91,14 @@ let () =
 
   (* Inference: sample new names from the model *)
   print_endline "\n--- inference (new, hallucinated names) ---";
+  let block_size = 16 in (* maximum sequence length *)
   for sample_idx = 0 to 20 - 1 do
     let token_id = bos in
     let sample = ref [] in
     let pos_id = ref 0 in
-    let block_size = 16 in (* maximum sequence length *)
     while !pos_id < block_size do
       incr pos_id;
-      let token_id = Random.element @@ List.mapi (fun i w -> w, i) @@ Array.to_list @@ bigram token_id in      
+      let token_id = Random.index @@ bigram token_id in      
       if token_id = bos then pos_id := block_size
       else sample := uchars.(token_id) :: !sample;
     done;

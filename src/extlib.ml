@@ -37,6 +37,12 @@ module Random = struct
     let u2 = Random.float 1.0 in
     sqrt (-2. *. log u1) *. cos (2. *. Float.pi *. u2)
 
+  (** Pick an index in a list of weights. *)
+  let index a =
+    let total = Array.fold_left ( +. ) 0. a in
+    let r = ref @@ Random.float total in
+    Option.get @@ Array.find_index (fun w -> if !r < w then true else (r := !r -. w; false)) a
+
   (** Pick an element in a weighted list. *)
   let element l =
     let total = List.fold_left ( +. ) 0. @@ List.map fst l in
