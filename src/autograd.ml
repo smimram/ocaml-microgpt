@@ -51,10 +51,9 @@ let div a b =
 let exp a =
   make (exp @@ value a) [a] [exp @@ value a]
 
-(*
+(** Power. *)
 let pow a b =
   make (value a ** value b) [a; b] [value b *. (value a ** (value b -. 1.)); (value a ** value b) *. log (value a)]
- *)
 
 (** Power by a constant. *)
 let powc a n =
@@ -99,7 +98,7 @@ module Infix = struct
   let ( * ) = mul
   let ( - ) = sub
   let ( / ) = div
-  let ( ** ) = powc
+  let ( ** ) = pow
 end
 
 (** Vectors. *)
