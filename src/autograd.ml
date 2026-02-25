@@ -3,11 +3,11 @@
 (** A value that can be backpropagated. *)
 type t =
   {
-    mutable value : float; (* scalar value of this node calculated during forward pass *)
-    mutable grad : float; (* derivative of the loss w.r.t. this node, calculated in backward pass *)
-    children : t list; (* children of this node in the computation graph *)
-    local_grads : float list; (* local derivative of this node w.r.t. its children *)
-    mutable visited : bool; (* whether the value was already visited during backprop *)
+    mutable value : float; (** scalar value of this node calculated during forward pass *)
+    mutable grad : float; (** derivative of the loss w.r.t. this node, calculated in backward pass *)
+    children : t list; (** children of this node in the computation graph *)
+    local_grads : float list; (** local derivative of this node w.r.t. its children *)
+    mutable visited : bool; (** whether the value was already visited during backprop *)
   }
 
 (** Get value. *)
