@@ -1,3 +1,6 @@
+(** Automatic differentiation and backward propagation. *)
+
+(** A value that can be backpropagated. *)
 type t =
   {
     mutable value : float; (* scalar value of this node calculated during forward pass *)
@@ -7,34 +10,44 @@ type t =
     mutable visited : bool; (* whether the value was already visited during backprop *)
   }
 
+(** Get value. *)
 let value a = a.value
 
+(** Get gradient. *)
 let grad a = a.grad
 
 let make value children local_grads =
   { value; grad = 0.; children; local_grads; visited = false}
 
+(** Constant value. *)
 let const value =
   make value [] []
 
+(** Addition. *)
 let add a b =
   make (value a +. value b) [a; b] [1.; 1.]
 
+(** Subtraction. *)
 let sub a b =
   make (value a -. value b) [a; b] [1.; -1.]
 
+(** Negation. *)
 let neg a =
   make (-. (value a)) [a] [-1.]
 
+(** Multiplication by a constant. *)
 let cmul n a =
   make (n *. value a) [a] [n]
 
+(** Multiplication. *)
 let mul a b =
   make (value a *. value b) [a; b] [value b; value a]
 
+(** Division. *)
 let div a b =
   make (value a /. value b) [a; b] [1. /. value b; -. value a /. (value b *. value b)]
 
+(** Exponentiation. *)
 let exp a =
   make (exp @@ value a) [a] [exp @@ value a]
 
@@ -47,12 +60,15 @@ let pow a b =
 let powc a n =
   make (value a ** n) [a] [n *. (value a ** (n -. 1.))]
 
+(** Natural logarithm. *)
 let log a =
   make (log @@ value a) [a] [1. /. value a]
 
+(** Rectified linear unit. *)
 let relu a =
   make (max 0. (value a)) [a] [if value a > 0. then 1. else 0.]
 
+(** Perform backward propagation. *)
 let backward a =
   (* Breadth-first search (see the example from the Queue module). *)
   let topo a =
@@ -77,6 +93,7 @@ let backward a =
   a.grad <- 1.;
   List.iter (fun a -> List.iter2 (fun child grad -> child.grad <- child.grad +. grad *. a.grad) a.children a.local_grads) topo
 
+(** Infix notations. *)
 module Infix = struct
   let ( + ) = add
   let ( * ) = mul
@@ -168,6 +185,7 @@ module Matrix = struct
   let ap (a : t) (x : Vector.t) : Vector.t =
     Array.init (rows a) (fun i -> Vector.dot a.(i) x)
 
+  (** Transpoe a matrix. *)
   let transpose a =
     init (cols a) (rows a) (fun i j -> a.(j).(i))
 end

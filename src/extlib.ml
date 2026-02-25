@@ -1,4 +1,4 @@
-(** Extended standard library. *)
+(** Extended standard library, adding functions which ought to be present there. *)
 
 module File = struct
   let read fname =
