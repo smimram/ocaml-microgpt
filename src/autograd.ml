@@ -146,7 +146,7 @@ module Matrix = struct
 
   (** Create a matrix with given coefficients. *)
   let init rows cols f : t =
-    Array.init_matrix rows cols f
+    Array.init rows (fun i -> Array.init cols (fun j -> f i j))
 
   (** Number of rows. *)
   let rows a = Array.length a

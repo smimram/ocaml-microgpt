@@ -20,11 +20,7 @@ module Array = struct
       if i = n then None
       else if p (unsafe_get a i) then Some i
       else loop (succ i) in
-    loop 0
-
-  (* Backward compatibility. *)
-  let init_matrix rows cols f =
-    Array.init rows (fun i -> Array.init cols (fun j -> f i j))
+    loop 0  
 
   (** Index of an element. *)
   let index a x =
