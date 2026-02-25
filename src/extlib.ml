@@ -13,6 +13,15 @@ end
 module Array = struct
   include Array
 
+  (* Backward compabtibility. *)
+  let find_index p a =
+    let n = length a in
+    let rec loop i =
+      if i = n then None
+      else if p (unsafe_get a i) then Some i
+      else loop (succ i) in
+    loop 0
+
   (** Index of an element. *)
   let index a x =
     Option.get @@ Array.find_index (fun y -> x = y) a
