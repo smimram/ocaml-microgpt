@@ -22,9 +22,13 @@ module Array = struct
       else loop (succ i) in
     loop 0
 
+  (* Backward compatibility. *)
+  let init_matrix rows cols f =
+    Array.init rows (fun i -> Array.init cols (fun j -> f i j))
+
   (** Index of an element. *)
   let index a x =
-    Option.get @@ Array.find_index (fun y -> x = y) a
+    Option.get @@ find_index (fun y -> x = y) a
 
   (** Fisher-Yates shuffle of an array. *)
   let shuffle a =
