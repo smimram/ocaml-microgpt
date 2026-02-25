@@ -13,11 +13,11 @@ jobs:
     - name: Test
       run: dune runtest
     - name: Build doc
-      run: make -C docs && rm -f docs/.gitignore
+      run: dune build @doc
     - name: Upload website artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: docs
+        path: _build/default/_doc/_html
   deploy:
     needs: build
     permissions:

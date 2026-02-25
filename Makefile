@@ -3,3 +3,6 @@ all:
 
 test:
 	@dune runtest
+
+doc:
+	@dune build @doc

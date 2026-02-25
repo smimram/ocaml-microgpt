@@ -1,5 +1,5 @@
 (library
- (name autograd)
+ (public_name autograd)
  (modules autograd)
 )
 
