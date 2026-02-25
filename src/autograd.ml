@@ -67,6 +67,11 @@ let log a =
 let relu a =
   make (max 0. (value a)) [a] [if value a > 0. then 1. else 0.]
 
+(** Sigmoid function. *)
+let sigmoid a =
+  let s = 1. /. (1. +. (Stdlib.exp (-. (value a)))) in
+  make s [a] [s *. (1. -. s)]
+
 (** Perform backward propagation. *)
 let backward a =
   (* Breadth-first search (see the example from the Queue module). *)
@@ -116,6 +121,10 @@ module Vector = struct
 
   (** Subvector. *)
   let subvector (v:t) off len : t = Array.sub v off len
+
+  let to_scalar (v:t) =
+    assert (dim v = 1);
+    v.(0)
 
   (** Hadamard product. *)
   let hadamard (v:t) (w:t) : t =
@@ -187,4 +196,12 @@ module Matrix = struct
   (** Transpoe a matrix. *)
   let transpose a =
     init (cols a) (rows a) (fun i j -> a.(j).(i))
+
+  (*
+  (** Add matrices. *)
+  let add (a:t) (b:t) : t =
+    assert (rows a = rows b);
+    assert (cols a = cols b);
+    init (rows a) (cols a) (fun i j -> add a.(i).(j) b.(i).(j))
+  *)
 end
