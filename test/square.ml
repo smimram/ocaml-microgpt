@@ -8,16 +8,17 @@ let () =
   let dataset = List.map (fun x -> x, x *. x) [-1.0; -0.8; -0.6; -0.4; -0.2; 0.0; 0.2; 0.4; 0.6; 0.8; 1.0] in
 
   (* Train a network with one hidden layer of size 6. *)
-  let layer1 = Matrix.init 6 1 (fun _ _ -> const (Random.float 1.)) in
-  let layer2 = Matrix.init 1 6 (fun _ _ -> const (Random.float 1.)) in
+  let width = 6 in
+  let layer1 = Matrix.init width 1 (fun _ _ -> const (Random.float 2. -. 1.)) in
+  let layer2 = Matrix.init 1 width (fun _ _ -> const (Random.float 2. -. 1.)) in
   let params = List.flatten @@ List.map Matrix.coefficients [layer1; layer2] in
 
   Printf.printf "num params: %d\n" (List.length params);
 
   let net x = x |> Matrix.ap layer1 |> Matrix.ap layer2 in
 
-  let learning_rate = 0.1 in
-  let steps = 1_000 in
+  let learning_rate = 0.01 in
+  let steps = 1000 in
   for step = 0 to steps - 1 do
     let loss = ref @@ const 0. in
     List.iter (fun (x,y) ->
