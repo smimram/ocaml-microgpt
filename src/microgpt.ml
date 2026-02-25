@@ -194,7 +194,7 @@ let () =
 
   (* Inference: may the model babble back to us *)
   let temperature = 0.5 in (* in (0, 1], control the "creativity" of generated text, low to high *)
-  print_string "\n--- inference (new, hallucinated names) ---";
+  print_string "\n--- inference (new, hallucinated names) ---\n";
   for sample_idx = 0 to 19 do
     let keys = Array.make n_layer [||] in
     let values = Array.make n_layer [||] in
