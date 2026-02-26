@@ -1,18 +1,19 @@
-(** Bigram language model with a single-layer MLP, trained with autograd. *)
+(** Single-head attention + MLP, with position embeddings. *)
 
 (*
-Same as train1.ml:
-- Dataset, tokenizer, model architecture (MLP), SGD optimizer, inference
+Same as train2.ml:
+- Dataset, tokenizer, autograd (Value class), SGD optimizer, inference
 
-Different from train1.ml:
-- Introduces autograd to compute gradients automatically
-- No more manual analytic_gradient or numerical_gradient
-- The forward pass builds a computation graph, loss.backward() traverses it
+Different from train2.py:
+- Model now sees the full sequence context, not just the current token
+- Introduces: position embeddings (wpe), single-head attention, rmsnorm,
+  residual connections, separate lm_head
+- Model function takes (token_id, pos_id, keys, values) like train.py's gpt()
 
-The hand-derived chain rule from train1.py is now automated: each operation
-records its local gradient, and backward() applies the chain rule recursively.
-The training loop becomes: forward pass -> loss.backward() -> SGD update.
- *)
+The model is now structurally a GPT: embed -> attention -> MLP -> lm_head.
+The only remaining differences from train.py are: single head (vs multi-head),
+single layer (vs configurable), and SGD (vs Adam).
+*)
 
 open Extlib
 open Autograd
@@ -20,8 +21,14 @@ open Autograd
 type state =
   {
     wte : Matrix.t;
+    wpe : Matrix.t;
+    attn_wq : Matrix.t;
+    attn_wk : Matrix.t;
+    attn_wv : Matrix.t;
+    attn_wo : Matrix.t;
     mlp_fc1 : Matrix.t;
     mlp_fc2 : Matrix.t;
+    lm_head : Matrix.t;
   }
 
 let () =
@@ -55,22 +62,51 @@ let () =
 
   (* Initialize the parameters *)
   let n_embd = 16 in (* embedding dimension *)
+  let block_size = 16 in (* maximum sequence length *)
   let matrix nout nin = Matrix.init nout nin (fun _ _ -> const (0.08 *. Random.gauss ())) in
   let state =
     {
       wte = matrix vocab_size n_embd;
-      mlp_fc1 = matrix (4 * n_embd) n_embd;
-      mlp_fc2 = matrix vocab_size (4 * n_embd);
+      wpe = matrix block_size n_embd;
+      attn_wq = matrix n_embd n_embd;
+      attn_wk = matrix n_embd n_embd;
+      attn_wv = matrix n_embd n_embd;
+      attn_wo = matrix n_embd n_embd;
+      mlp_fc1 = matrix (4*n_embd) n_embd;
+      mlp_fc2 = matrix n_embd (4*n_embd);
+      lm_head = matrix vocab_size n_embd;
     }
   in
-  let params = List.flatten @@ List.map Matrix.coefficients [state.wte; state.mlp_fc1; state.mlp_fc2] in
+  let params = List.flatten @@ List.map Matrix.coefficients [state.wte; state.wpe; state.attn_wq; state.attn_wk; state.attn_wv; state.attn_wo; state.mlp_fc1; state.mlp_fc2; state.lm_head] in
   Printf.printf "num params: %d\n" (List.length params);
 
-  let mlp token_id =
-    state.wte.(token_id)
+  let gpt token_id pos_id keys values =
+    let tok_emb = state.wte.(token_id) in
+    let pos_emb = state.wpe.(pos_id) in
+    let x = Vector.rms_norm @@ Vector.add tok_emb pos_emb in
+
+    (* 1) Single-head attention block *)
+    let x_residual = x in
+    let x = Vector.rms_norm x in
+    let q = Matrix.ap state.attn_wq x in
+    let k = Matrix.ap state.attn_wk x in
+    let v = Matrix.ap state.attn_wv x in
+    keys := k :: !keys;
+    values := v :: !values;
+    let attn_logits = List.map (fun k -> cmul (sqrt (float n_embd)) (Vector.dot q k)) !keys |> Array.of_list in
+    let attn_weights = Vector.soft_max attn_logits in
+    let x_attn = Array.map (fun v -> Vector.dot attn_weights v) (Matrix.transpose (Array.of_list !values)) in
+    let x = Matrix.ap state.attn_wo x_attn |> Vector.add x_residual in
+
+    (* 2) MLP block *)
+    let x_residual = x in
+    x
+    |> Vector.rms_norm
     |> Matrix.ap state.mlp_fc1
     |> Vector.map relu
     |> Matrix.ap state.mlp_fc2
+    |> Vector.add x_residual
+    |> Matrix.ap state.lm_head
   in
 
   (* Train the model *)
@@ -89,11 +125,13 @@ let () =
     let n = Array.length tokens - 1 in
 
     (* Forward pass *)
+    let keys = ref [] in
+    let values = ref [] in
     let loss = ref @@ const 0. in
     for pos_id = 0 to n - 1 do
       let token_id = tokens.(pos_id) in
       let target_id = tokens.(pos_id + 1) in
-      let logits = mlp token_id in
+      let logits = gpt token_id pos_id keys values in
       let probs = Vector.soft_max logits in
       let loss_t = neg (log probs.(target_id)) in
       loss := add !loss loss_t
@@ -119,12 +157,14 @@ let () =
   let temperature = 0.5 in
   let block_size = 16 in (* maximum sequence length *)
   for sample_idx = 0 to 20 - 1 do
+    let keys = ref [] in
+    let values = ref [] in
     let token_id = ref bos in
     let sample = ref [] in
     let pos_id = ref 0 in
     while !pos_id < block_size do
       incr pos_id;
-      let logits = mlp !token_id in
+      let logits = gpt !token_id !pos_id keys values in
       let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
       token_id := Random.index @@ Array.map value @@ probs;
       if !token_id = bos then pos_id := block_size
