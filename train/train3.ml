@@ -20,12 +20,12 @@ open Autograd
 
 type state =
   {
-    wte : Matrix.t;
-    wpe : Matrix.t;
-    attn_wq : Matrix.t;
-    attn_wk : Matrix.t;
-    attn_wv : Matrix.t;
-    attn_wo : Matrix.t;
+    wte : Matrix.t; (** term embedding *)
+    wpe : Matrix.t; (** position embedding *)
+    attn_wq : Matrix.t; (** query weights *)
+    attn_wk : Matrix.t; (** key weights *)
+    attn_wv : Matrix.t; (** value weights *)
+    attn_wo : Matrix.t; (** output weights *)
     mlp_fc1 : Matrix.t;
     mlp_fc2 : Matrix.t;
     lm_head : Matrix.t;
@@ -87,13 +87,12 @@ let () =
 
     (* 1) Single-head attention block *)
     let x_residual = x in
-    let x = Vector.rms_norm x in
     let q = Matrix.ap state.attn_wq x in
     let k = Matrix.ap state.attn_wk x in
     let v = Matrix.ap state.attn_wv x in
     keys := k :: !keys;
     values := v :: !values;
-    let attn_logits = List.map (fun k -> cmul (sqrt (float n_embd)) (Vector.dot q k)) !keys |> Array.of_list in
+    let attn_logits = List.map (fun k -> cmul (1. /. sqrt (float n_embd)) (Vector.dot q k)) !keys |> Array.of_list in
     let attn_weights = Vector.soft_max attn_logits in
     let x_attn = Array.map (fun v -> Vector.dot attn_weights v) (Matrix.transpose (Array.of_list !values)) in
     let x = Matrix.ap state.attn_wo x_attn |> Vector.add x_residual in
@@ -111,8 +110,8 @@ let () =
 
   (* Train the model *)
   let num_steps = 1000 in
-  let learning_rate = 0.1 in
-  for step = 0 to num_steps - 1 do
+  let learning_rate = 0.05 in
+  for step = 0 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
@@ -148,7 +147,8 @@ let () =
         p.grad <- 0.
       ) params;
 
-    Printf.printf "step %4d / %4d | loss %.4f\r%!" (step+1) num_steps (value loss)
+    if step < 5 || step mod 100 = 0 then
+      Printf.printf "step %4d / %4d | loss %.4f\n%!" step num_steps (value loss)
   done;
   print_newline ();
 
