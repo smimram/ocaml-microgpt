@@ -21,3 +21,9 @@
  (modules train3)
  (libraries extlib autograd)
 )
+
+(executable
+ (name train4)
+ (modules train4)
+ (libraries extlib autograd)
+)

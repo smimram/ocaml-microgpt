@@ -1,0 +1,211 @@
+(** Full GPT transformer, trained with SGD. *)
+
+(*
+Same as train3.ml:
+- Dataset, tokenizer, autograd, position embeddings, attention, MLP, rmsnorm,
+  residual connections, SGD optimizer, inference
+
+Different from train3.ml:
+- Multi-head attention (n_head=4) instead of single head
+- Configurable n_layer with layer loop and layer-prefixed state_dict keys
+
+The model is now identical to train.py. The only remaining difference is the
+optimizer: SGD here vs Adam in train.py. Adam adds momentum and adaptive
+learning rates, which help navigate the loss landscape more efficiently.
+*)
+
+open Extlib
+open Autograd
+
+type layer =
+  {
+    attn_wq : Matrix.t; (** query weights *)
+    attn_wk : Matrix.t; (** key weights *)
+    attn_wv : Matrix.t; (** value weights *)
+    attn_wo : Matrix.t; (** output weights *)
+    mlp_fc1 : Matrix.t;
+    mlp_fc2 : Matrix.t;
+  }
+
+type state =
+  {
+    wte : Matrix.t; (** term embedding *)
+    wpe : Matrix.t; (** position embedding *)
+    layer : layer array;
+    lm_head : Matrix.t;
+  }
+
+let () =
+  Random.self_init ();
+
+  (* Let there be a Dataset docs: a list of documents (e.g. a list of names). *)
+  if not (Sys.file_exists "input.txt") then File.download "https://raw.githubusercontent.com/karpathy/makemore/refs/heads/master/names.txt" "input.txt";
+  let docs =
+    File.read "input.txt"
+    |> String.split_on_char '\n'
+    |> List.map String.trim
+    |> List.filter (fun s -> s <> "")
+    |> Array.of_list
+  in
+  Array.shuffle docs;
+
+  (* Tokenizer: character-level, with a special BOS (Beginning of Sequence) token *)
+  let uchars =
+    (* unique characters in the dataset become token ids *)
+    Array.to_seq docs
+    |> Seq.concat_map String.to_seq
+    |> List.of_seq
+    |> List.sort_uniq compare
+    |> Array.of_list
+  in
+  (* token id for a special Beginning of Sequence (BOS) token *)
+  let bos = Array.length uchars in
+  (* total number of unique tokens, +1 is for BOS *)
+  let vocab_size = Array.length uchars + 1 in
+  Printf.printf "vocab size: %d\n%!" vocab_size;
+
+  (* Initialize the parameters *)
+  let n_embd = 16 in (* embedding dimension *)
+  let n_head = 4 in (* number of attention heads *)
+  let n_layer = 1 in (* number of layers *)
+  let block_size = 16 in (* maximum sequence length *)
+  let head_dim = n_embd / n_head in (* dimension of each head *)
+  let matrix nout nin = Matrix.init nout nin (fun _ _ -> const (0.08 *. Random.gauss ())) in
+  let layer =
+    Array.init
+      n_layer
+      (fun _ ->
+        {
+          attn_wq = matrix n_embd n_embd;
+          attn_wk = matrix n_embd n_embd;
+          attn_wv = matrix n_embd n_embd;
+          attn_wo = matrix n_embd n_embd;
+          mlp_fc1 = matrix (4*n_embd) n_embd;
+          mlp_fc2 = matrix n_embd (4*n_embd);
+        }
+      )
+  in
+  let state =
+    {
+      wte = matrix vocab_size n_embd;
+      wpe = matrix block_size n_embd;
+      layer = layer;
+      lm_head = matrix vocab_size n_embd;
+    }
+  in
+  let params =
+    let layers =
+      Array.to_list state.layer
+      |> List.map (fun l -> [l.attn_wq; l.attn_wk; l.attn_wv; l.attn_wo; l.mlp_fc1; l.mlp_fc2])
+      |> List.flatten
+    in
+    List.flatten @@ List.map Matrix.coefficients ([state.wte; state.wpe; state.lm_head]@layers)
+  in
+  Printf.printf "num params: %d\n" (List.length params);
+
+  let gpt token_id pos_id keys values =
+    let tok_emb = state.wte.(token_id) in
+    let pos_emb = state.wpe.(pos_id) in
+    let x = Vector.add tok_emb pos_emb in
+    let x = ref x in
+
+    for li = 0 to n_layer - 1 do
+      (* 1) Single-head attention block *)
+      x := Vector.rms_norm !x;
+      let x_residual = !x in
+      let q = Matrix.ap state.layer.(li).attn_wq !x in
+      let k = Matrix.ap state.layer.(li).attn_wk !x in
+      let v = Matrix.ap state.layer.(li).attn_wv !x in
+      keys.(li) <- k :: keys.(li);
+      values.(li) <- v :: values.(li);
+      let x_attn = ref [] in
+      for h = 0 to n_head - 1 do
+        let hs = h * head_dim in
+        let sub v = Vector.subvector v hs head_dim in
+        let q_h = sub q in
+        let k_h = List.map sub keys.(li) in
+        let v_h = List.map sub values.(li) in
+        let attn_logits = List.map (fun k_hi -> cmul (1. /. sqrt (float head_dim)) (Vector.dot q_h k_hi)) k_h |> Array.of_list in
+        let attn_weights = Vector.soft_max attn_logits in
+        let head_out = Array.map (Vector.dot attn_weights) (Matrix.transpose @@ Array.of_list v_h) in
+        x_attn := head_out :: !x_attn
+      done;
+      x := Matrix.ap state.layer.(li).attn_wo !x;
+      x := Vector.add x_residual !x;
+
+      (* 2) MLP block *)
+      let x_residual = !x in
+      x := Vector.rms_norm !x;
+      x := Matrix.ap state.layer.(li).mlp_fc1 !x;
+      x := Vector.map relu !x;
+      x := Matrix.ap state.layer.(li).mlp_fc2 !x;
+      x := Vector.add x_residual !x;
+    done;
+    Matrix.ap state.lm_head !x
+  in
+
+  (* Train the model *)
+  let num_steps = 1000 in
+  let learning_rate = 1. in
+  for step = 1 to num_steps do
+
+    (* Take single document, tokenize it, surround it with BOS special token on both sides *)
+    let tokens =
+      docs.(step mod Array.length docs)
+      |> String.to_seq
+      |> Seq.map (Array.index uchars)
+      |> (fun doc -> Seq.concat (List.to_seq [Seq.return bos; doc; Seq.return bos]))
+      |> Array.of_seq
+    in
+    let n = Array.length tokens - 1 in
+
+    (* Forward pass *)
+    let keys = Array.make n_layer [] in
+    let values = Array.make n_layer [] in
+    let loss = ref @@ const 0. in
+    for pos_id = 0 to n - 1 do
+      let token_id = tokens.(pos_id) in
+      let target_id = tokens.(pos_id + 1) in
+      let logits = gpt token_id pos_id keys values in
+      let probs = Vector.soft_max logits in
+      let loss_t = neg (log probs.(target_id)) in
+      loss := add !loss loss_t
+    done;
+    let loss = cmul (1. /. float n) !loss in
+
+    (* Backward pass *)
+    backward loss;
+
+    (* SGD update *)
+    let lr_t = learning_rate *. (1. -. float step /. float num_steps) in (* linear learning rate decay *)
+    List.iter (fun p ->
+        p.value <- value p -. lr_t *. grad p;
+        p.grad <- 0.
+      ) params;
+
+    if step <= 5 || step mod 100 = 0 then
+      Printf.printf "step %4d / %4d | loss %.4f\n%!" step num_steps (value loss)
+  done;
+  print_newline ();
+
+  (* Inference: sample new names from the model *)
+  print_endline "\n--- inference (new, hallucinated names) ---";
+  let temperature = 0.5 in
+  let block_size = 16 in (* maximum sequence length *)
+  for sample_idx = 0 to 20 - 1 do
+    let keys = Array.make n_layer [] in
+    let values = Array.make n_layer [] in
+    let token_id = ref bos in
+    let sample = ref [] in
+    let pos_id = ref 0 in
+    while !pos_id < block_size do
+      incr pos_id;
+      let logits = gpt !token_id !pos_id keys values in
+      let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
+      token_id := Random.index @@ Array.map value @@ probs;
+      if !token_id = bos then pos_id := block_size
+      else sample := uchars.(!token_id) :: !sample;
+    done;
+    let sample = String.of_seq @@ List.to_seq @@ List.rev !sample in
+    Printf.printf "sample %2d: %s\n%!" (sample_idx+1) sample
+  done

@@ -1,3 +1,6 @@
+train4:
+	@dune exec ./train4.exe
+
 train3:
 	@dune exec ./train3.exe
 
