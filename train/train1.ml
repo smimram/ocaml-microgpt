@@ -250,7 +250,7 @@ let () =
           let f = Matrix.iter2 (fun gn ga -> ans := max !ans (abs_float (gn -. ga))) in
           f grad_n.wte grad_a.wte;
           f grad_n.mlp_fc1 grad_a.mlp_fc1;
-          f grad_n.mlp_fc2 grad_n.mlp_fc2;
+          f grad_n.mlp_fc2 grad_a.mlp_fc2;
           !ans
         in
         Printf.printf "gradient check | loss_n %.6f | loss_a %.6f | max diff %.8f\n" loss_n loss_a grad_diff
