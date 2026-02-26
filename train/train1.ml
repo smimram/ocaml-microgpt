@@ -32,6 +32,9 @@ module Vector = struct
   let add (v:t) (w:t) : t =
     Array.map2 (+.) v w
 
+  let mul (v:t) (w:t) : t =
+    Array.map2 ( *. ) v w
+
   let cmul x (v:t) : t =
     Array.map (( *. ) x) v
 
@@ -39,9 +42,7 @@ module Vector = struct
     Array.fold_left (+.) 0. v
 
   let dot (v:t) (w:t) =
-    let ans = ref 0. in
-    Array.iter2 (fun x y -> ans := !ans +. x *. y) v w;
-    !ans
+    sum @@ mul v w
 
   let soft_max (logits:t) =
     let max_val = Array.fold_left max min_float logits in
@@ -201,13 +202,12 @@ let () =
       let dh = Vector.create @@ Vector.dim h in
       for i = 0 to Vector.dim dlogits - 1 do
         for j = 0 to Vector.dim h - 1 do
-          (* TODO: matrix operations *)
           grad.mlp_fc2.(i).(j) <- grad.mlp_fc2.(i).(j) +. dlogits.(i) *. h.(j);
           dh.(j) <- dh.(j) +. state.mlp_fc2.(i).(j) *. dlogits.(i)
         done
       done;
       (* d(loss)/d(h_pre): relu backward *)
-      let dh_pre = Vector.map (fun x -> if x > 0. then 1. else 0.) h_pre in
+      let dh_pre = Vector.mul dh @@ Vector.map (fun x -> if x > 0. then 1. else 0.) h_pre in
       (* d(loss)/d(mlp_fc1), d(loss)/d(x): h_pre = mlp_fc1 @ x *)
       let dx = Vector.create @@ Vector.dim x in
       for i = 0 to Vector.dim dh_pre - 1 do
@@ -227,7 +227,7 @@ let () =
 
   (* Train the model *)
   let num_steps = 1000 in
-  let learning_rate = 0.1 in
+  let learning_rate = 1. in
   for step = 0 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
@@ -256,7 +256,7 @@ let () =
         Printf.printf "gradient check | loss_n %.6f | loss_a %.6f | max diff %.8f\n" loss_n loss_a grad_diff
       );
 
-
+    (* let loss, grad = numerical_gradient tokens n in *)
     let loss, grad = analytic_gradient tokens n in
 
     (* SGD update *)
@@ -271,7 +271,7 @@ let () =
   done;
 
   (* Inference: sample new names from the model *)
-  print_endline "\n--- inference (new, hallucinated names) ---";
+  print_endline "--- inference (new, hallucinated names) ---";
   let temperature = 0.5 in
   let block_size = 16 in (* maximum sequence length *)
   for sample_idx = 0 to 20 - 1 do
