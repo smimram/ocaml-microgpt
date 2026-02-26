@@ -228,7 +228,7 @@ let () =
   (* Train the model *)
   let num_steps = 1000 in
   let learning_rate = 1. in
-  for step = 0 to num_steps do
+  for step = 1 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
@@ -241,7 +241,7 @@ let () =
     let n = Array.length tokens - 1 in
 
     (* Gradient check: verify numerical and analytic gradients agree *)
-    if step = 0 then
+    if step = 1 then
       (
         let loss_n, grad_n = numerical_gradient tokens n in
         let loss_a, grad_a = analytic_gradient tokens n in
@@ -266,7 +266,7 @@ let () =
     state.mlp_fc1 <- Matrix.add state.mlp_fc1 @@ Matrix.cmul (-.lr_t) grad.mlp_fc1;
     state.mlp_fc2 <- Matrix.add state.mlp_fc2 @@ Matrix.cmul (-.lr_t) grad.mlp_fc2;
 
-    if step < 5 || step mod 100 = 0 then
+    if step <= 5 || step mod 100 = 0 then
       Printf.printf "step %4d / %4d | loss %.4f\n%!" step num_steps loss
   done;
 

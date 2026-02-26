@@ -57,7 +57,7 @@ let () =
 
   (* Train the model *)
   let num_steps = 1000 in
-  for step = 0 to num_steps - 1 do
+  for step = 1 to num_steps do
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
       docs.(step mod Array.length docs)
@@ -86,7 +86,7 @@ let () =
       state.(token_id).(target_id) <- state.(token_id).(target_id) + 1
     done;
 
-    Printf.printf "step %4d / %4d | loss %.4f\r" (step+1) num_steps loss
+    Printf.printf "step %4d / %4d | loss %.4f\r" step num_steps loss
   done;
   print_newline ();
 
