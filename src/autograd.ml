@@ -154,7 +154,7 @@ module Vector = struct
 
   (** RMS norm. *)
   let rms_norm (x:t) =
-    let ms = sum @@ hadamard x x in
+    let ms = dot x x in
     let scale = powc (add ms (const 1e-5)) (-0.5) in
     cmul scale x
 
