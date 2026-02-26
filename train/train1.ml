@@ -151,9 +151,15 @@ let () =
             ) row
         ) mat
     in
-    let grad = (grad state.wte, grad state.mlp_fc1, grad state.mlp_fc2) in
+    let grad =
+      {
+        wte = grad state.wte;
+        mlp_fc1 = grad state.mlp_fc1;
+        mlp_fc2 = grad state.mlp_fc2;
+      }
+    in
     loss, grad
-   in
+  in
 
   (* Train the model *)
   let num_steps = 1000 in
@@ -170,14 +176,14 @@ let () =
     in
     let n = Array.length tokens - 1 in
 
-    let loss, (grad_wte, grad_mlp_fc1, grad_mlp_fc2) = numerical_gradient tokens n in
+    let loss, grad = numerical_gradient tokens n in
 
     (* SGD update *)
     let lr_t = learning_rate *. (1. -. float step /. float num_steps) in (* linear learning rate decay *)
 
-    state.wte <- Matrix.add state.wte @@ Matrix.cmul (-.lr_t) grad_wte;
-    state.mlp_fc1 <- Matrix.add state.mlp_fc1 @@ Matrix.cmul (-.lr_t) grad_mlp_fc1;
-    state.mlp_fc2 <- Matrix.add state.mlp_fc2 @@ Matrix.cmul (-.lr_t) grad_mlp_fc2;
+    state.wte <- Matrix.add state.wte @@ Matrix.cmul (-.lr_t) grad.wte;
+    state.mlp_fc1 <- Matrix.add state.mlp_fc1 @@ Matrix.cmul (-.lr_t) grad.mlp_fc1;
+    state.mlp_fc2 <- Matrix.add state.mlp_fc2 @@ Matrix.cmul (-.lr_t) grad.mlp_fc2;
 
     if step < 5 || step mod 100 = 0 then
       Printf.printf "step %4d / %4d | loss %.4f\n%!" step num_steps loss
