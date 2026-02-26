@@ -3,20 +3,20 @@ open Autograd
 
 type layer =
   {
-    attn_wq : Matrix.t;
-    attn_wk : Matrix.t;
-    attn_wv : Matrix.t;
-    attn_wo : Matrix.t;
+    attn_wq : Matrix.t; (** query weights *)
+    attn_wk : Matrix.t; (** key weights *)
+    attn_wv : Matrix.t; (** value weights *)
+    attn_wo : Matrix.t; (** output weights *)
     mlp_fc1 : Matrix.t;
     mlp_fc2 : Matrix.t;
   }
 
 type state =
   {
-    wte : Matrix.t;
-    wpe : Matrix.t;
-    lm_head : Matrix.t;
+    wte : Matrix.t; (** term embedding *)
+    wpe : Matrix.t; (** position embedding *)
     layer : layer array;
+    lm_head : Matrix.t;
   }
 
 let () =
@@ -67,16 +67,16 @@ let () =
             attn_wk = matrix n_embd n_embd;
             attn_wv = matrix n_embd n_embd;
             attn_wo = matrix n_embd n_embd;
-            mlp_fc1 = matrix (4 * n_embd) n_embd;
-            mlp_fc2 = matrix n_embd (4 * n_embd);
+            mlp_fc1 = matrix (4*n_embd) n_embd;
+            mlp_fc2 = matrix n_embd (4*n_embd);
           }
         )
     in
     {
       wte = matrix vocab_size n_embd;
       wpe = matrix block_size n_embd;
-      lm_head = matrix vocab_size n_embd;
       layer;
+      lm_head = matrix vocab_size n_embd;
     }
   in
   let params =
@@ -92,7 +92,6 @@ let () =
   (* Define the model architecture: a function mapping tokens and parameters to logits over what comes next
      Follow GPT-2, blessed among the GPTs, with minor differences: layernorm -> rmsnorm, no biases, GeLU -> ReLU
    *)
-  let linear x w = Matrix.ap w x in
   let gpt token_id pos_id keys values =
     (* token embedding *)
     let tok_emb = state.wte.(token_id) in
@@ -107,35 +106,36 @@ let () =
       (* 1) Multi-head Attention block *)
       let x_residual = !x in
       x := Vector.rms_norm !x;
-      let q = linear !x state.layer.(li).attn_wq in
-      let k = linear !x state.layer.(li).attn_wk in
-      let v = linear !x state.layer.(li).attn_wv in
-      keys.(li) <- Array.append keys.(li) [|k|];
-      values.(li) <- Array.append values.(li) [|v|];
-      let x_attn = ref [||] in
+      let q = Matrix.ap state.layer.(li).attn_wq !x in
+      let k = Matrix.ap state.layer.(li).attn_wk !x in
+      let v = Matrix.ap state.layer.(li).attn_wv !x in
+      keys.(li) <- k :: keys.(li);
+      values.(li) <- v :: values.(li);
+      let x_attn = ref [] in
       for h = 0 to n_head - 1 do
         let hs = h * head_dim in
         let sub v = Vector.subvector v hs head_dim in
         let q_h = sub q in
-        let k_h = Array.map sub keys.(li) in
-        let v_h = Array.map sub values.(li) in
-        let attn_logits = Vector.init (Array.length k_h) (fun t -> div (Vector.dot q_h k_h.(t)) (const (float head_dim ** 0.5))) in
+        let k_h = List.map sub keys.(li) in
+        let v_h = List.map sub values.(li) in
+        let attn_logits = List.map (fun k_hi -> cmul (1. /. sqrt (float head_dim)) (Vector.dot q_h k_hi)) k_h |> Array.of_list in
         let attn_weights = Vector.soft_max attn_logits in
-        let head_out = Array.map (Vector.dot attn_weights) (Matrix.transpose v_h) in
-        x_attn := Array.append !x_attn head_out;
+        let head_out = Array.map (Vector.dot attn_weights) (Matrix.transpose @@ Array.of_list v_h) in
+        x_attn := head_out :: !x_attn;
       done;
-      x := linear !x_attn state.layer.(li).attn_wo;
+      let x_attn = Array.concat @@ List.rev !x_attn in
+      x := Matrix.ap state.layer.(li).attn_wo x_attn;
       x := Vector.add !x x_residual;
 
       (* 2) MLP block *)
       let x_residual = !x in
       x := Vector.rms_norm !x;
-      x := linear !x state.layer.(li).mlp_fc1;
+      x := Matrix.ap state.layer.(li).mlp_fc1 !x;
       x := Vector.map relu !x;
-      x := linear !x state.layer.(li).mlp_fc2;
+      x := Matrix.ap state.layer.(li).mlp_fc2 !x;
       x := Vector.add !x x_residual
     done;
-    linear !x state.lm_head
+    Matrix.ap state.lm_head !x
   in
 
   (* Let there be Adam, the blessed optimizer and its buffers *)
@@ -158,19 +158,19 @@ let () =
     let n = min block_size (Array.length tokens - 1) in
 
     (* Forward the token sequence through the model, building up the computation graph all the way to the loss *)
-    let keys = Array.init n_layer (fun _ -> [||]) in
-    let values = Array.init n_layer (fun _ -> [||]) in
-    let losses = ref [||] in
+    let keys = Array.make n_layer [] in
+    let values = Array.make n_layer [] in
+    let loss = ref (const 0.) in
     for pos_id = 0 to n - 1 do
       let token_id = tokens.(pos_id) in
       let target_id = tokens.(pos_id + 1) in
       let logits = gpt token_id pos_id keys values in
       let probs = Vector.soft_max logits in
       let loss_t = neg (log probs.(target_id)) in
-      losses := Array.append !losses [|loss_t|]
+      loss := add !loss loss_t
     done;
     (* final average loss over the document sequence. May yours be low. *)
-    let loss = mul (const (1. /. float n)) (Vector.sum !losses) in
+    let loss = cmul (1. /. float n) !loss in
 
     (* Backward the loss, calculating the gradients with respect to all model parameters *)
     backward loss;
@@ -195,17 +195,17 @@ let () =
   let temperature = 0.5 in (* in (0, 1], control the "creativity" of generated text, low to high *)
   print_endline "--- inference (new, hallucinated names) ---";
   for sample_idx = 0 to 19 do
-    let keys = Array.make n_layer [||] in
-    let values = Array.make n_layer [||] in
-    let token_id = bos in
+    let keys = Array.make n_layer [] in
+    let values = Array.make n_layer [] in
+    let token_id = ref bos in
     let sample = ref [] in
     let pos_id = ref 0 in
     while !pos_id < block_size do
-      let logits = gpt token_id !pos_id keys values in
+      let logits = gpt !token_id !pos_id keys values in
       let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
-      let token_id = Random.index @@ Array.map value probs in
-      if token_id = bos then pos_id := block_size
-      else sample := uchars.(token_id) :: !sample;
+      token_id := Random.index @@ Array.map value probs;
+      if !token_id = bos then pos_id := block_size
+      else sample := uchars.(!token_id) :: !sample;
       incr pos_id
     done;
     let sample = String.of_seq @@ List.to_seq @@ List.rev !sample in
