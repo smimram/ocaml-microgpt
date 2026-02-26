@@ -71,13 +71,6 @@ let sigmoid a =
 (** Perform backward propagation. *)
 let backward a =
   if a.visited then failwith "This is not supposed to be used multiple times on the same expression.";
-  (*
-  let rec unvisit a =
-    a.visited <- false;
-    List.iter unvisit a.children
-  in
-  unvisit a;
-  *)
   let topo =
     let ans = ref [] in
     let rec dfs a =
