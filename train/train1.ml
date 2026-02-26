@@ -23,6 +23,10 @@ let relu x = max 0. x
 module Vector = struct
   type t = float array
 
+  let create n : t = Array.make n 0.
+
+  let dim (v:t) = Array.length v
+
   let map = Array.map
 
   let add (v:t) (w:t) : t =
@@ -51,6 +55,12 @@ module Matrix = struct
 
   let init rows cols f =
     Array.init rows (fun i -> Array.init cols (fun j -> f i j))
+
+  let iter2 f (a:t) (b:t) =
+    Array.iter2 (Array.iter2 f) a b
+
+  let map f (a:t) : t =
+    Array.map (Vector.map f) a
 
   let coefficients (a:t) =
     List.flatten @@ List.map Array.to_list @@ Array.to_list a
@@ -161,6 +171,60 @@ let () =
     loss, grad
   in
 
+  (* Derive the gradient analytically using the chain rule. *)
+  let analytic_gradient tokens n =
+    let grad =
+      let zero _ = 0. in
+      {
+        wte = Matrix.map zero state.wte;
+        mlp_fc1 = Matrix.map zero state.mlp_fc1;
+        mlp_fc2 = Matrix.map zero state.mlp_fc2;
+      }
+    in
+    let loss = ref 0. in
+    for pos_id = 0 to n - 1 do
+      let token_id = tokens.(pos_id) in
+      let target_id = tokens.(pos_id+1) in
+      (* forward pass (saving intermediates for backward) *)
+      let x = state.wte.(token_id) in
+      let h_pre = Matrix.ap state.mlp_fc1 x in
+      let h = Vector.map relu h_pre in
+      let logits = Matrix.ap state.mlp_fc2 h in
+      let probs = Vector.soft_max logits in
+      let loss_t = -.(log probs.(target_id)) in
+      loss := !loss +. loss_t;
+      (* backward pass: chain rule, layer by layer *)
+      (* d(loss)/d(logits) for softmax + cross-entropy = probs - one_hot(target) *)
+      let dlogits = Vector.cmul (1. /. float n) probs in
+      dlogits.(target_id) <- dlogits.(target_id) -. 1. /. float n;
+      (* d(loss)/d(mlp_fc2), d(loss)/d(h): logits = mlp_fc2 @ h *)
+      let dh = Vector.create @@ Vector.dim h in
+      for i = 0 to Vector.dim dlogits - 1 do
+        for j = 0 to Vector.dim h - 1 do
+          (* TODO: matrix operations *)
+          grad.mlp_fc2.(i).(j) <- grad.mlp_fc2.(i).(j) +. dlogits.(i) *. h.(j);
+          dh.(j) <- dh.(j) +. state.mlp_fc2.(i).(j) *. dlogits.(i)
+        done
+      done;
+      (* d(loss)/d(h_pre): relu backward *)
+      let dh_pre = Vector.map (fun x -> if x > 0. then 1. else 0.) h_pre in
+      (* d(loss)/d(mlp_fc1), d(loss)/d(x): h_pre = mlp_fc1 @ x *)
+      let dx = Vector.create @@ Vector.dim x in
+      for i = 0 to Vector.dim dh_pre - 1 do
+        for j = 0 to Vector.dim x - 1 do
+          grad.mlp_fc1.(i).(j) <- grad.mlp_fc1.(i).(j) +. dh_pre.(i) *. x.(j);
+          dx.(j) <- dx.(j) +. state.mlp_fc1.(i).(j) *. dh_pre.(i)
+        done
+      done;
+      (* d(loss)/d(wte[token_id]): x = wte[token_id] *)
+      for j = 0 to Vector.dim x - 1 do
+        grad.wte.(token_id).(j) <- grad.wte.(token_id).(j) +. dx.(j)
+      done;
+    done;
+    let loss = !loss /. float n in
+    loss, grad
+  in
+
   (* Train the model *)
   let num_steps = 1000 in
   let learning_rate = 0.1 in
@@ -176,7 +240,24 @@ let () =
     in
     let n = Array.length tokens - 1 in
 
-    let loss, grad = numerical_gradient tokens n in
+    (* Gradient check: verify numerical and analytic gradients agree *)
+    if step = 0 then
+      (
+        let loss_n, grad_n = numerical_gradient tokens n in
+        let loss_a, grad_a = analytic_gradient tokens n in
+        let grad_diff =
+          let ans = ref 0. in
+          let f = Matrix.iter2 (fun gn ga -> ans := max !ans (abs_float (gn -. ga))) in
+          f grad_n.wte grad_a.wte;
+          f grad_n.mlp_fc1 grad_a.mlp_fc1;
+          f grad_n.mlp_fc2 grad_n.mlp_fc2;
+          !ans
+        in
+        Printf.printf "gradient check | loss_n %.6f | loss_a %.6f | max diff %.8f\n" loss_n loss_a grad_diff
+      );
+
+
+    let loss, grad = analytic_gradient tokens n in
 
     (* SGD update *)
     let lr_t = learning_rate *. (1. -. float step /. float num_steps) in (* linear learning rate decay *)
