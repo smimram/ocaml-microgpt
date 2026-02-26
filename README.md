@@ -7,4 +7,4 @@ This is a re-implementation of Andrej Karpathy's microgpt, a stripped down versi
 - [the original python code](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95)
 - [the makemore code](https://github.com/karpathy/makemore)
 
-Although, I have tried to remain concise, I have favored idiomatic code over short one.
+Although I have tried to remain concise, I have favored idiomatic code over short one.
