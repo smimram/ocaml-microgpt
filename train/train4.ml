@@ -107,12 +107,13 @@ let () =
     let tok_emb = state.wte.(token_id) in
     let pos_emb = state.wpe.(pos_id) in
     let x = Vector.add tok_emb pos_emb in
+    let x = Vector.rms_norm x in
     let x = ref x in
 
     for li = 0 to n_layer - 1 do
       (* 1) Single-head attention block *)
-      x := Vector.rms_norm !x;
       let x_residual = !x in
+      x := Vector.rms_norm !x;
       let q = Matrix.ap state.layer.(li).attn_wq !x in
       let k = Matrix.ap state.layer.(li).attn_wk !x in
       let v = Matrix.ap state.layer.(li).attn_wv !x in
@@ -130,8 +131,9 @@ let () =
         let head_out = Array.map (Vector.dot attn_weights) (Matrix.transpose @@ Array.of_list v_h) in
         x_attn := head_out :: !x_attn
       done;
-      x := Matrix.ap state.layer.(li).attn_wo !x;
-      x := Vector.add x_residual !x;
+      let x_attn = Array.concat @@ List.rev !x_attn in
+      x := Matrix.ap state.layer.(li).attn_wo x_attn;
+      x := Vector.add !x x_residual;
 
       (* 2) MLP block *)
       let x_residual = !x in
