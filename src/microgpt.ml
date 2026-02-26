@@ -121,7 +121,7 @@ let () =
         let v_h = Array.map sub values.(li) in
         let attn_logits = Vector.init (Array.length k_h) (fun t -> div (Vector.dot q_h k_h.(t)) (const (float head_dim ** 0.5))) in
         let attn_weights = Vector.soft_max attn_logits in
-        let head_out = Array.init head_dim (fun j -> Vector.dot attn_weights (Matrix.transpose v_h).(j)) in
+        let head_out = Array.map (Vector.dot attn_weights) (Matrix.transpose v_h) in
         x_attn := Array.append !x_attn head_out;
       done;
       x := linear !x_attn state.layer.(li).attn_wo;
