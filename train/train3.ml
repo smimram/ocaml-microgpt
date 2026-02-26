@@ -83,7 +83,8 @@ let () =
   let gpt token_id pos_id keys values =
     let tok_emb = state.wte.(token_id) in
     let pos_emb = state.wpe.(pos_id) in
-    let x = Vector.rms_norm @@ Vector.add tok_emb pos_emb in
+    let x = Vector.add tok_emb pos_emb in
+    let x = Vector.rms_norm x in
 
     (* 1) Single-head attention block *)
     let x_residual = x in
@@ -94,8 +95,9 @@ let () =
     values := v :: !values;
     let attn_logits = List.map (fun k -> cmul (1. /. sqrt (float n_embd)) (Vector.dot q k)) !keys |> Array.of_list in
     let attn_weights = Vector.soft_max attn_logits in
-    let x_attn = Array.map (fun v -> Vector.dot attn_weights v) (Matrix.transpose (Array.of_list !values)) in
-    let x = Matrix.ap state.attn_wo x_attn |> Vector.add x_residual in
+    let x_attn = Array.map (fun v -> Vector.dot attn_weights v) (Matrix.transpose @@ Array.of_list !values) in
+    let x = Matrix.ap state.attn_wo x_attn in
+    let x = Vector.add x_residual x in
 
     (* 2) MLP block *)
     let x_residual = x in
