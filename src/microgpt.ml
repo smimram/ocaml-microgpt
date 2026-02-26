@@ -56,9 +56,7 @@ let () =
   let block_size = 16 in (* maximum context length of the attention window (note: the longest name is 15 characters) *)
   let n_head = 4 in (* number of attention heads *)
   let head_dim = n_embd / n_head in (* derived dimension of each head *)
-  let matrix ?(std=0.08) nout nin =
-    Matrix.init nout nin (fun _ _ -> const (std *. Random.gauss ()))
-  in
+  let matrix ?(std=0.08) nout nin = Matrix.init nout nin (fun _ _ -> const (std *. Random.gauss ())) in
   let state =
     let layer =
       Array.init
@@ -147,7 +145,7 @@ let () =
 
   (* Repeat in sequence *)
   let num_steps = 1000 in (* number of training steps *)
-  for step = 0 to num_steps - 1 do
+  for step = 1 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
@@ -189,12 +187,13 @@ let () =
         p.grad <- 0.
       ) params;
 
-    Printf.printf "step %4d / %4d | loss %.4f\r%!" (step+1) num_steps (value loss)
+    Printf.printf "step %4d / %4d | loss %.4f\r%!" step num_steps (value loss)
   done;
+  print_newline ();
 
   (* Inference: may the model babble back to us *)
   let temperature = 0.5 in (* in (0, 1], control the "creativity" of generated text, low to high *)
-  print_string "\n--- inference (new, hallucinated names) ---\n";
+  print_endline "--- inference (new, hallucinated names) ---";
   for sample_idx = 0 to 19 do
     let keys = Array.make n_layer [||] in
     let values = Array.make n_layer [||] in
@@ -202,12 +201,12 @@ let () =
     let sample = ref [] in
     let pos_id = ref 0 in
     while !pos_id < block_size do
-      incr pos_id;
       let logits = gpt token_id !pos_id keys values in
       let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
       let token_id = Random.index @@ Array.map value probs in
       if token_id = bos then pos_id := block_size
-      else sample := uchars.(token_id) :: !sample
+      else sample := uchars.(token_id) :: !sample;
+      incr pos_id
     done;
     let sample = String.of_seq @@ List.to_seq @@ List.rev !sample in
     Printf.printf "sample %02d: %s\n%!" (sample_idx+1) sample
