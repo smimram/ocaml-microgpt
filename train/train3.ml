@@ -112,7 +112,7 @@ let () =
 
   (* Train the model *)
   let num_steps = 1000 in
-  let learning_rate = 0.05 in
+  let learning_rate = 1. in
   for step = 0 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)

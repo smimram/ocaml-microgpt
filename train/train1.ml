@@ -45,7 +45,7 @@ module Vector = struct
     sum @@ mul v w
 
   let soft_max (logits:t) =
-    let max_val = Array.fold_left max min_float logits in
+    let max_val = Array.fold_left max neg_infinity logits in
     let exps = Array.map (fun v -> exp (v -. max_val)) logits in
     let total = sum exps in
     Array.map (fun e -> e /. total) exps

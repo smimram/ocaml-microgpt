@@ -51,10 +51,6 @@ let div a b =
 let exp a =
   make (exp @@ value a) [a] [exp @@ value a]
 
-(** Power. *)
-let pow a b =
-  make (value a ** value b) [a; b] [value b *. (value a ** (value b -. 1.)); (value a ** value b) *. log (value a)]
-
 (** Power by a constant. *)
 let powc a n =
   make (value a ** n) [a] [n *. (value a ** (n -. 1.))]
@@ -74,6 +70,7 @@ let sigmoid a =
 
 (** Perform backward propagation. *)
 let backward a =
+  if a.visited then failwith "This is not supposed to be used multiple times on the same expression.";
   (* Breadth-first search (see the example from the Queue module). *)
   let topo a =
     let queue = Queue.create() in
@@ -103,7 +100,7 @@ module Infix = struct
   let ( * ) = mul
   let ( - ) = sub
   let ( / ) = div
-  let ( ** ) = pow
+  let ( ** ) = powc
 end
 
 (** Vectors. *)
@@ -147,7 +144,7 @@ module Vector = struct
 
   (** Soft max function. *)
   let soft_max (logits:t) =
-    let max_val = const @@ Array.fold_left max min_float @@ Array.map value logits in
+    let max_val = const @@ Array.fold_left max neg_infinity @@ Array.map value logits in
     let exps = map (fun x -> exp (sub x max_val)) logits in
     let total = sum exps in
     map (fun e -> div e total) exps
