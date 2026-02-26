@@ -76,7 +76,7 @@ let () =
   (* Train the model *)
   let num_steps = 1000 in
   let learning_rate = 0.1 in
-  for step = 0 to num_steps - 1 do
+  for step = 0 to num_steps do
 
     (* Take single document, tokenize it, surround it with BOS special token on both sides *)
     let tokens =
@@ -110,9 +110,9 @@ let () =
         p.grad <- 0.
       ) params;
 
-    Printf.printf "step %4d / %4d | loss %.4f\r%!" (step+1) num_steps (value loss)
+    if step < 5 || step mod 100 = 0 then
+    Printf.printf "step %4d / %4d | loss %.4f\n%!" step num_steps (value loss)
   done;
-  print_newline ();
 
   (* Inference: sample new names from the model *)
   print_endline "\n--- inference (new, hallucinated names) ---";

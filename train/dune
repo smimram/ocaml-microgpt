@@ -5,6 +5,12 @@
 )
 
 (executable
+ (name train1)
+ (modules train1)
+ (libraries extlib)
+)
+
+(executable
  (name train2)
  (modules train2)
  (libraries extlib autograd)
