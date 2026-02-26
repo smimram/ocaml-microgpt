@@ -71,25 +71,19 @@ let sigmoid a =
 (** Perform backward propagation. *)
 let backward a =
   if a.visited then failwith "This is not supposed to be used multiple times on the same expression.";
-  (* Breadth-first search (see the example from the Queue module). *)
-  let topo a =
-    let queue = Queue.create() in
+  let topo =
     let ans = ref [] in
-    Queue.push a queue;
-    let rec loop () =
-      if Queue.is_empty queue then !ans
-      else explore @@ Queue.pop queue
-    and explore a =
-      if a.visited then loop () else (
-        a.visited <- true;
-        ans := a :: !ans;
-        List.iter (fun a -> Queue.push a queue) a.children;
-        loop ()
-      )
+    let rec dfs a =
+      if not a.visited then
+        (
+          a.visited <- true;
+          List.iter dfs a.children;
+          ans := a :: !ans
+        )
     in
-    loop()
+    dfs a;
+    List.rev !ans
   in
-  let topo = List.rev @@ topo a in
   (* Printf.printf "backward: %d\n%!" (List.length topo); *)
   a.grad <- 1.;
   List.iter (fun a -> List.iter2 (fun child grad -> child.grad <- child.grad +. grad *. a.grad) a.children a.local_grads) topo

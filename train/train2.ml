@@ -115,7 +115,7 @@ let () =
   done;
 
   (* Inference: sample new names from the model *)
-  print_endline "\n--- inference (new, hallucinated names) ---";
+  print_endline "--- inference (new, hallucinated names) ---";
   let temperature = 0.5 in
   let block_size = 16 in (* maximum sequence length *)
   for sample_idx = 0 to 20 - 1 do
