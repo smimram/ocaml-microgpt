@@ -39,9 +39,9 @@ let () =
   Printf.printf "vocab size: %d\n%!" vocab_size;
 
   (* Initialize the parameters, to store the knowledge of the model *)
-  let n_layer = 1 in (* depth of the transformer neural network (number of layers) *)
+  let n_layer = 2 in (* depth of the transformer neural network (number of layers) *)
   let n_embd = 16 in (* width of the network (embedding dimension) *)
-  let block_size = 16 in (* maximum context length of the attention window *)
+  let block_size = 24 in (* maximum context length of the attention window *)
   let n_head = 4 in (* number of attention heads *)
   let head_dim = n_embd / n_head in (* derived dimension of each head *)
   let matrix ?(std=0.08) nout nin = Matrix.init nout nin (fun _ _ -> const (std *. Random.gauss ())) in
@@ -130,8 +130,8 @@ let () =
   let v = Array.make (List.length params) 0. in (* second moment buffer *)
 
   (* Repeat in sequence *)
-  let num_steps = String.length doc / block_size in (* number of training steps *)
-  (* let num_steps = 500 in *)
+  (* let num_steps = String.length doc / block_size in (\* number of training steps *\) *)
+  let num_steps = 1000 in
   let t0 = Unix.time () in
   for step = 0 to num_steps - 1 do
 
@@ -188,11 +188,14 @@ let () =
   let values = Array.make n_layer [] in
   let token_id = ref @@ Random.int @@ Array.length uchars in
   let pos_id = ref 0 in
-  while !pos_id < 1000 do
+  while !pos_id < 5000 do
+    Array.map_inplace (List.take block_size) keys;
+    Array.map_inplace (List.take block_size) values;
     let logits = gpt !token_id (!pos_id mod block_size) keys values in
     let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
     token_id := Random.index @@ Array.map value probs;
     output_char stdout uchars.(!token_id);
+    flush stdout;
     incr pos_id
   done;
   print_newline ()
