@@ -1,0 +1,4 @@
+(executable
+ (name shakespeare)
+ (libraries autograd extlib unix)
+)
