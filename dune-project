@@ -6,4 +6,5 @@
 (generate_opam_files true)
 (package
  (name autograd)
+ (synopsis "Simple library for performing backpropagation")
 )
