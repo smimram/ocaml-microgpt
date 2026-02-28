@@ -37,6 +37,19 @@ module Array = struct
     done
 end
 
+module List = struct
+  include List
+
+  (* Backward compabtibility. *)
+  let take n l =
+    let rec aux n l =
+      match n, l with
+      | 0, _ | _, [] -> []
+      | n, x::l -> x::aux (n - 1) l
+    in
+    if n <= 0 then [] else aux n l
+end
+
 module Random = struct
   include Random
 
