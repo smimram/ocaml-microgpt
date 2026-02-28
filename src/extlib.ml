@@ -30,6 +30,10 @@ module Array = struct
     done
 end
 
+module List = struct
+  include List
+end
+
 module Random = struct
   include Random
 
