@@ -22,8 +22,10 @@ type state =
 let () =
   Random.self_init ();
 
-  if not (Sys.file_exists "input.txt") then File.download "https://raw.githubusercontent.com/karpathy/char-rnn/refs/heads/master/data/tinyshakespeare/input.txt" "input.txt";
+  if not (Sys.file_exists "input.txt") then File.download "https://gutenberg.org/cache/epub/19657/pg19657.txt" "input.txt";
   let doc = File.read "input.txt" in
+  (* drop the first characters as they are boilerplate / toc *)
+  let doc = String.sub doc 10_000 @@ String.length doc - 10_000 in
   Printf.printf "doc length: %d\n%!" (String.length doc);
 
   (* unique characters in the dataset *)
