@@ -1,5 +1,7 @@
 (** Extended standard library, adding functions which ought to be present there. *)
 
+open Backcomp
+
 module File = struct
   let read fname =
     In_channel.with_open_bin fname
@@ -12,15 +14,6 @@ end
 
 module Array = struct
   include Array
-
-  (* Backward compabtibility. *)
-  let find_index p a =
-    let n = length a in
-    let rec loop i =
-      if i = n then None
-      else if p (unsafe_get a i) then Some i
-      else loop (succ i) in
-    loop 0  
 
   (** Index of an element. *)
   let index a x =
@@ -35,19 +28,6 @@ module Array = struct
       a.(i) <- a.(j);
       a.(j) <- x
     done
-end
-
-module List = struct
-  include List
-
-  (* Backward compabtibility. *)
-  let take n l =
-    let rec aux n l =
-      match n, l with
-      | 0, _ | _, [] -> []
-      | n, x::l -> x::aux (n - 1) l
-    in
-    if n <= 0 then [] else aux n l
 end
 
 module Random = struct
