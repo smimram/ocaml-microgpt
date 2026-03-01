@@ -135,6 +135,8 @@ let () =
   (* let num_steps = String.length doc / block_size in (\* number of training steps *\) *)
   let num_steps = 1000 in
   let t0 = Unix.time () in
+  let keys = Array.make n_layer [] in
+  let values = Array.make n_layer [] in
   for step = 0 to num_steps - 1 do
 
     let tokens =
@@ -146,10 +148,10 @@ let () =
     let n = min block_size (Array.length tokens - 1) in
 
     (* Forward the token sequence through the model, building up the computation graph all the way to the loss *)
-    let keys = Array.make n_layer [] in
-    let values = Array.make n_layer [] in
     let loss = ref (const 0.) in
     for pos_id = 0 to n - 1 do
+      Array.map_inplace (List.take block_size) keys;
+      Array.map_inplace (List.take block_size) values;
       let token_id = tokens.(pos_id) in
       let target_id = tokens.(pos_id + 1) in
       let logits = gpt token_id pos_id keys values in
