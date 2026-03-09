@@ -1,1 +1,1 @@
-Generate Shakespeare.
+Generate Victor Hugo.
