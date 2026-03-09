@@ -41,10 +41,10 @@ let () =
   Printf.printf "vocab size: %d\n%!" vocab_size;
 
   (* Initialize the parameters, to store the knowledge of the model *)
-  let n_layer = 1 in (* depth of the transformer neural network (number of layers) *)
+  let n_layer = 2 in (* depth of the transformer neural network (number of layers) *)
   let n_embd = 16 in (* width of the network (embedding dimension) *)
   let block_size = 32 in (* maximum context length of the attention window *)
-  let n_head = 4 in (* number of attention heads *)
+  let n_head = 8 in (* number of attention heads *)
   let head_dim = n_embd / n_head in (* derived dimension of each head *)
   let matrix ?(std=0.08) nout nin = Matrix.init nout nin (fun _ _ -> const (std *. Random.gauss ())) in
   let state =
@@ -132,8 +132,7 @@ let () =
   let v = Array.make (List.length params) 0. in (* second moment buffer *)
 
   (* Repeat in sequence *)
-  (* let num_steps = String.length doc / block_size in (\* number of training steps *\) *)
-  let num_steps = 1000 in
+  let num_steps = String.length doc / block_size in (* number of training steps *)
   let t0 = Unix.time () in
   let keys = Array.make n_layer [] in
   let values = Array.make n_layer [] in
