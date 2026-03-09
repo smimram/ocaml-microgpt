@@ -192,7 +192,7 @@ let () =
   let token_id = ref @@ Random.int @@ Array.length uchars in
   let pos_id = ref 0 in
   let oc = open_out "output.txt" in
-  while !pos_id < 5000 do
+  while !pos_id < 100_000 do
     Array.map_inplace (List.take block_size) keys;
     Array.map_inplace (List.take block_size) values;
     let logits = gpt !token_id (!pos_id mod block_size) keys values in
