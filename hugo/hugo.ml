@@ -191,14 +191,18 @@ let () =
   let values = Array.make n_layer [] in
   let token_id = ref @@ Random.int @@ Array.length uchars in
   let pos_id = ref 0 in
+  let oc = open_out "output.txt" in
   while !pos_id < 5000 do
     Array.map_inplace (List.take block_size) keys;
     Array.map_inplace (List.take block_size) values;
     let logits = gpt !token_id (!pos_id mod block_size) keys values in
     let probs = Vector.soft_max @@ Vector.cmul (const (1. /. temperature)) logits in
     token_id := Random.index @@ Array.map value probs;
-    output_char stdout uchars.(!token_id);
+    let c = uchars.(!token_id) in
+    output_char oc c;
+    output_char stdout c;
     flush stdout;
     incr pos_id
   done;
+  close_out oc;
   print_newline ()
