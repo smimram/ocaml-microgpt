@@ -58,3 +58,7 @@ Compared to the original python code, the OCaml version runs roughly ... times f
 ### License
 
 License is [MIT](LICENSE) as for the original python files.
+
+### Links
+
+- [Other microGPT implementations](https://github.com/rupeshs/awesome-microgpts)
