@@ -17,7 +17,7 @@ In order to run the code, simply type
 dune exec src/microgpt.exe
 ```
 
-This will download the training file and generate names:
+This will download the training file, train the LLM, and generate names:
 
 ```
 num docs: 32033
