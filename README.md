@@ -51,10 +51,21 @@ sample 20: telian
 
 ## Speed
 
-Compared to the original python code, the OCaml version runs roughly ... times faster:
+Compared to the original python code, the OCaml version runs roughly 6 times faster:
 
 ```
-...
+$ hyperfine ./microgpt.py "dune exec ./microgpt.exe"
+Benchmark 1: ./microgpt.py
+  Time (mean ± σ):     83.418 s ±  1.690 s    [User: 83.104 s, System: 0.291 s]
+  Range (min … max):   79.972 s … 86.178 s    10 runs
+ 
+Benchmark 2: dune exec ./microgpt.exe
+  Time (mean ± σ):     13.953 s ±  0.322 s    [User: 13.891 s, System: 0.058 s]
+  Range (min … max):   13.635 s … 14.549 s    10 runs
+ 
+Summary
+  dune exec ./microgpt.exe ran
+    5.98 ± 0.18 times faster than ./microgpt.py
 ```
 
 ### License
