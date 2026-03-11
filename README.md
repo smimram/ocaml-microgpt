@@ -7,7 +7,9 @@ This is a re-implementation of Andrej Karpathy's microgpt, a stripped down versi
 - [the original python code](https://gist.github.com/karpathy/8627fe009c40f57531cb18360106ce95)
 - [the makemore code](https://github.com/karpathy/makemore)
 
-Although I have tried to remain concise, I have favored idiomatic code over short one. The final code can be found in [src](src), the intermediate implementation steps can be found in [train](train), some tests are present in [test](test) and [hugo](hugo) is an attempt to use microGPT to generate text like Victor Hugo (not very convincing for now).
+Although I have tried to remain concise, I have favored idiomatic code over short one. In particular, autograd is performed by a [separate library](src/autograd.ml).
+
+The final code can be found in [src](src), the intermediate implementation steps can be found in [train](train), some tests are present in [test](test) and [hugo](hugo) is an attempt to use microGPT to generate text like Victor Hugo (not very convincing for now).
 
 ## Running microGPT
 
