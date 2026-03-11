@@ -68,10 +68,10 @@ Summary
     5.98 ± 0.18 times faster than ./microgpt.py
 ```
 
-### License
+## License
 
 License is [MIT](LICENSE) as for the original python files.
 
-### Links
+## Links
 
 - [Other microGPT implementations](https://github.com/rupeshs/awesome-microgpts)
